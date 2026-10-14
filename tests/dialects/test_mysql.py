@@ -2111,6 +2111,32 @@ COMMENT='客户账户表'"""
         self.validate_identity("x MOD y", "x % y").assert_is(exp.Mod)
         self.validate_identity("MOD(x, y)", "x % y").assert_is(exp.Mod)
 
+    def test_stddev_variance(self):
+        # STD, STDDEV and VARIANCE are the population aggregates in MySQL
+        self.validate_identity("STD(x)", "STDDEV_POP(x)").assert_is(exp.StddevPop)
+        self.validate_identity("STDDEV(x)", "STDDEV_POP(x)").assert_is(exp.StddevPop)
+        self.validate_identity("STDDEV_POP(x)").assert_is(exp.StddevPop)
+        self.validate_identity("STDDEV_SAMP(x)").assert_is(exp.StddevSamp)
+        self.validate_identity("VARIANCE(x)", "VAR_POP(x)").assert_is(exp.VariancePop)
+        self.validate_identity("VAR_POP(x)").assert_is(exp.VariancePop)
+        self.validate_identity("VAR_SAMP(x)").assert_is(exp.Variance)
+
+        self.validate_all(
+            "SELECT STDDEV_POP(x), VAR_POP(x)",
+            read={
+                "mysql": "SELECT STDDEV(x), VARIANCE(x)",
+            },
+            write={
+                "duckdb": "SELECT STDDEV_POP(x), VAR_POP(x)",
+            },
+        )
+        self.validate_all(
+            "SELECT STDDEV_SAMP(x), VAR_SAMP(x)",
+            read={
+                "duckdb": "SELECT STDDEV(x), VARIANCE(x)",
+            },
+        )
+
     def test_numeric_trunc(self):
         # MySQL uses TRUNCATE for numeric truncation
         self.validate_identity("TRUNCATE(3.14159, 2)").assert_is(exp.Trunc)
