@@ -32,7 +32,8 @@ class TeradataParser(parser.Parser):
     TABLESAMPLE_CSV = True
     VALUES_FOLLOWED_BY_PAREN = False
 
-    TABLE_ALIAS_TOKENS = parser.Parser.TABLE_ALIAS_TOKENS | {
+    # ALL is left out so that it can end a DELETE statement, e.g. DELETE FROM t ALL
+    TABLE_ALIAS_TOKENS = (parser.Parser.TABLE_ALIAS_TOKENS - {TokenType.ALL}) | {
         TokenType.ANTI,
         TokenType.SEMI,
     }
@@ -132,6 +133,22 @@ class TeradataParser(parser.Parser):
                 with_error=self._match_text_seq("WITH", "ERROR"),
             )
         )
+
+    # In DELETE [FROM] t [WHERE ... | ALL], FROM is optional and ALL deletes every row,
+    # the same as a DELETE without a WHERE clause
+    # https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Manipulation-Language/Statement-Syntax/DELETE/DELETE-Syntax
+    def _parse_delete(self) -> exp.Delete:
+        delete = super()._parse_delete()
+
+        tables = delete.args.get("tables")
+        if not delete.this and tables and len(tables) == 1:
+            delete.set("this", tables[0])
+            delete.set("tables", None)
+
+        if not delete.args.get("where"):
+            self._match(TokenType.ALL)
+
+        return delete
 
     # FROM before SET in Teradata UPDATE syntax
     # https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/Teradata-VantageTM-SQL-Data-Manipulation-Language-17.20/Statement-Syntax/UPDATE/UPDATE-Syntax-Basic-Form-FROM-Clause

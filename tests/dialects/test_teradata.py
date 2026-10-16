@@ -74,6 +74,22 @@ class TestTeradata(Validator):
             },
         )
 
+    def test_delete(self):
+        self.validate_identity("DELETE FROM t ALL", "DELETE FROM t")
+        self.validate_identity("DELETE FROM t AS x ALL", "DELETE FROM t AS x")
+        self.validate_identity("DEL t ALL", "DELETE FROM t")
+        self.validate_identity("DELETE t WHERE a = 1", "DELETE FROM t WHERE a = 1")
+        self.validate_identity('DELETE FROM t AS "ALL"')
+        self.validate_identity("DELETE FROM t WHERE a = 1")
+        self.validate_identity("DELETE a FROM t AS a, u AS b WHERE a.id = b.id")
+        self.validate_all(
+            "DELETE t ALL",
+            write={
+                "teradata": "DELETE FROM t",
+                "snowflake": "DELETE FROM t",
+            },
+        )
+
     def test_statistics(self):
         self.validate_identity("COLLECT STATISTICS ON tbl INDEX(col)", check_command_warning=True)
         self.validate_identity("COLLECT STATS ON tbl COLUMNS(col)", check_command_warning=True)
