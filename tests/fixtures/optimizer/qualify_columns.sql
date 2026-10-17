@@ -1354,6 +1354,16 @@ SELECT x.b AS b, u.id AS id, u.north AS north, u.south AS south, u.month AS mont
 WITH c AS (SELECT id, jan, feb FROM unpivotable) SELECT piv.* FROM c UNPIVOT(revenue FOR month IN (jan, feb)) AS piv;
 WITH c AS (SELECT unpivotable.id AS id, unpivotable.jan AS jan, unpivotable.feb AS feb FROM unpivotable AS unpivotable) SELECT piv.id AS id, piv.month AS month, piv.revenue AS revenue FROM c AS c UNPIVOT(revenue FOR month IN (jan, feb)) AS piv;
 
+# title: pivoted CTE with both a table alias and a pivot alias
+# dialect: duckdb
+WITH c AS (SELECT id, jan, feb FROM unpivotable) SELECT piv.revenue, month FROM c AS m UNPIVOT(revenue FOR month IN (jan, feb)) AS piv;
+WITH c AS (SELECT unpivotable.id AS id, unpivotable.jan AS jan, unpivotable.feb AS feb FROM unpivotable AS unpivotable) SELECT piv.revenue AS revenue, piv.month AS month FROM c AS m UNPIVOT(revenue FOR month IN (jan, feb)) AS piv;
+
+# title: star over a pivoted CTE with both a table alias and a pivot alias
+# dialect: duckdb
+WITH c AS (SELECT id, jan, feb FROM unpivotable) SELECT * FROM c AS m UNPIVOT(revenue FOR month IN (jan, feb)) AS piv;
+WITH c AS (SELECT unpivotable.id AS id, unpivotable.jan AS jan, unpivotable.feb AS feb FROM unpivotable AS unpivotable) SELECT piv.id AS id, piv.month AS month, piv.revenue AS revenue FROM c AS m UNPIVOT(revenue FOR month IN (jan, feb)) AS piv;
+
 # title: qualified star over the pivot alias of a pivoted subquery
 # dialect: duckdb
 SELECT piv.* FROM (SELECT id, jan, feb FROM unpivotable) UNPIVOT(revenue FOR month IN (jan, feb)) AS piv;

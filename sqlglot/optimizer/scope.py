@@ -930,7 +930,12 @@ def _traverse_tables(scope: Scope) -> Iterator[Scope]:
                 # it is pivoted, because then we get back a new table and hence a new source.
                 pivots = expression.args.get("pivots")
                 if pivots:
-                    sources[pivots[-1].alias] = expression
+                    pivot_alias = pivots[-1].alias
+                    sources[pivot_alias] = expression
+                    if source_name not in (table_name, pivot_alias):
+                        # The table alias names the parent source, like the name of an unaliased
+                        # reference does, e.g. `m` in `cte AS m UNPIVOT(...) AS p`
+                        sources[source_name] = scope.sources[table_name]
                 else:
                     sources[source_name] = scope.sources[table_name]
             elif source_name in sources:
