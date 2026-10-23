@@ -374,3 +374,31 @@ SELECT x.a, w.d FROM x JOIN y ON x.a = y.b AND y.b IN (SELECT z.b AS b FROM y AS
 # execute: true
 SELECT x.a, w.d FROM x JOIN y ON x.a = y.b AND y.b IN (SELECT z.b AS b FROM y AS z WHERE z.b = 2) FULL JOIN w ON FALSE;
 SELECT x.a, w.d FROM x JOIN y ON x.a = y.b AND y.b IN (SELECT z.b AS b FROM y AS z WHERE z.b = 2) FULL JOIN w ON FALSE;
+
+# title: scalar aggregate that is not NULL over zero rows keeps that value without a match
+# execute: true
+SELECT x.a, (SELECT COALESCE(SUM(y.c), 0) AS c FROM y WHERE y.b = x.a) AS s FROM x ORDER BY x.a;
+SELECT x.a, CASE WHEN _u_0._u_1 IS NULL THEN COALESCE(NULL, 0) ELSE _u_0.c END AS s FROM x LEFT JOIN (SELECT COALESCE(SUM(y.c), 0) AS c, y.b AS _u_1 FROM y WHERE TRUE GROUP BY y.b) AS _u_0 ON _u_0._u_1 = x.a ORDER BY x.a;
+
+# title: scalar aggregate that is NULL for a matched group stays NULL
+# execute: true
+SELECT x.a, (SELECT NULLIF(COUNT(*), 2) AS c FROM y WHERE y.b = x.a) AS s FROM x ORDER BY x.a;
+SELECT x.a, CASE WHEN _u_0._u_1 IS NULL THEN NULLIF(0, 2) ELSE _u_0.c END AS s FROM x LEFT JOIN (SELECT NULLIF(COUNT(*), 2) AS c, y.b AS _u_1 FROM y WHERE TRUE GROUP BY y.b) AS _u_0 ON _u_0._u_1 = x.a ORDER BY x.a;
+
+# title: scalar aggregate that is NULL over zero rows through arithmetic gets no default
+# execute: true
+SELECT x.a, (SELECT COUNT(*) + SUM(y.c) AS c FROM y WHERE y.b = x.a) AS s FROM x ORDER BY x.a;
+SELECT x.a, _u_0.c AS s FROM x LEFT JOIN (SELECT COUNT(*) + SUM(y.c) AS c, y.b AS _u_1 FROM y WHERE TRUE GROUP BY y.b) AS _u_0 ON _u_0._u_1 = x.a ORDER BY x.a;
+
+# title: filtered COUNT defaults to 0 without a match
+# execute: true
+SELECT x.a, (SELECT COUNT(*) FILTER(WHERE y.c > 2) AS c FROM y WHERE y.b = x.a) AS s FROM x ORDER BY x.a;
+SELECT x.a, CASE WHEN _u_0._u_1 IS NULL THEN 0 ELSE _u_0.c END AS s FROM x LEFT JOIN (SELECT COUNT(*) FILTER(WHERE y.c > 2) AS c, y.b AS _u_1 FROM y WHERE TRUE GROUP BY y.b) AS _u_0 ON _u_0._u_1 = x.a ORDER BY x.a;
+
+# title: WITHIN GROUP and IGNORE / RESPECT NULLS aggregates default to NULL without a match
+SELECT x.a, (SELECT COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY y.c), FIRST(y.c) IGNORE NULLS, LAST(y.c) RESPECT NULLS, 0) AS c FROM y WHERE y.b = x.a) AS s FROM x;
+SELECT x.a, CASE WHEN _u_0._u_1 IS NULL THEN COALESCE(NULL, NULL, NULL, 0) ELSE _u_0.c END AS s FROM x LEFT JOIN (SELECT COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY y.c), FIRST(y.c) IGNORE NULLS, LAST(y.c) RESPECT NULLS, 0) AS c, y.b AS _u_1 FROM y WHERE TRUE GROUP BY y.b) AS _u_0 ON _u_0._u_1 = x.a;
+
+# title: windowed COUNT gets no default
+SELECT x.a, (SELECT COUNT(*) OVER () AS c FROM y WHERE y.b = x.a) AS s FROM x;
+SELECT x.a, _u_0.c AS s FROM x LEFT JOIN (SELECT COUNT(*) OVER () AS c, y.b AS _u_1 FROM y WHERE TRUE GROUP BY y.b) AS _u_0 ON _u_0._u_1 = x.a;

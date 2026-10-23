@@ -5,6 +5,8 @@ from sqlglot.optimizer.scope import ScopeType, find_in_scope, traverse_scope
 from sqlglot.optimizer.helpers import projection_has_aggregate
 from sqlglot._typing import E
 
+AGG_MODIFIERS = (exp.Filter, exp.WithinGroup, exp.IgnoreNulls, exp.RespectNulls)
+
 
 def unnest_subqueries(expression: E) -> E:
     """
@@ -387,18 +389,29 @@ def decorrelate(select, parent_select, external_columns, next_alias_name):
                 f"ARRAY_ANY({alias}, _x -> _x = {parent_predicate.this})",
             )
     else:
-        # COUNT always returns 0 on empty datasets, so we need take that into consideration here
-        # by transforming all counts into 0 and using that as the coalesced value
-        if find_in_scope(value, exp.Count):
+        # An aggregate subquery returns a row even when no rows match (e.g. COUNT returns 0), but
+        # the LEFT JOIN yields NULL for an outer row without a matching group, so we compute that
+        # row's value by transforming all counts into 0 and the other aggregates into NULL
+        if projection_has_aggregate(value, select.args.get("windows")):
 
             def remove_aggs(node):
-                if isinstance(node, exp.Count):
+                # FILTER, WITHIN GROUP and IGNORE / RESPECT NULLS wrap the aggregate they modify
+                agg = node.this if isinstance(node, AGG_MODIFIERS) else node
+                if isinstance(agg, exp.Count):
                     return exp.Literal.number(0)
-                elif isinstance(node, exp.AggFunc):
+                elif isinstance(agg, exp.AggFunc):
                     return exp.null()
                 return node
 
-            alias = exp.Coalesce(this=alias, expressions=[value.this.transform(remove_aggs)])
+            default = value.this.transform(remove_aggs)
+
+            if isinstance(value.this, exp.Count):
+                alias = exp.Coalesce(this=alias, expressions=[default])
+            elif not _is_null(default):
+                # Unlike COUNT, the value can also be NULL for a matched group, so only the join
+                # key tells the rows without a match apart
+                join_key = exp.column(next(key_aliases[key] for key in group_by), table_alias)
+                alias = exp.case().when(join_key.is_(exp.null()), default).else_(alias)
 
         if is_subquery_projection and select.parent.alias:
             alias = exp.alias_(alias, select.parent.alias)
@@ -451,6 +464,13 @@ def _is_negated(expression: exp.Expression) -> bool:
     while isinstance(parent, exp.Paren):
         parent = parent.parent
     return isinstance(parent, exp.Not)
+
+
+def _is_null(expression: exp.Expr) -> bool:
+    # Arithmetic is NULL as soon as one of its operands is
+    if isinstance(expression, (exp.Paren, exp.Neg, exp.Add, exp.Sub, exp.Mul, exp.Div)):
+        return any(_is_null(e) for e in expression.iter_expressions())
+    return isinstance(expression, exp.Null)
 
 
 def _replace(expression: exp.Expr, condition: exp.ExpOrStr) -> exp.Expr:
