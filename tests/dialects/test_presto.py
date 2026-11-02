@@ -452,7 +452,8 @@ class TestPresto(Validator):
                 "duckdb": "ISODOW(CAST('2012-08-08 01:00:00' AS TIMESTAMP))",
             },
             write={
-                "spark": "((DAYOFWEEK(CAST('2012-08-08 01:00:00' AS TIMESTAMP)) % 7) + 1)",
+                "spark": "(((DAYOFWEEK(CAST('2012-08-08 01:00:00' AS TIMESTAMP)) + 5) % 7) + 1)",
+                "databricks": "(((DAYOFWEEK(CAST('2012-08-08 01:00:00' AS TIMESTAMP)) + 5) % 7) + 1)",
                 "presto": "DAY_OF_WEEK(CAST('2012-08-08 01:00:00' AS TIMESTAMP))",
                 "duckdb": "ISODOW(CAST('2012-08-08 01:00:00' AS TIMESTAMP))",
             },

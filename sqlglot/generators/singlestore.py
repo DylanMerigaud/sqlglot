@@ -178,7 +178,8 @@ class SingleStoreGenerator(MySQLGenerator):
         exp.JSONObject: unsupported_args("null_handling", "unique_keys", "return_type", "encoding")(
             rename_func("JSON_BUILD_OBJECT")
         ),
-        exp.DayOfWeekIso: lambda self, e: f"(({self.func('DAYOFWEEK', e.this)} % 7) + 1)",
+        # DAYOFWEEK is Sunday=1..Saturday=7, ISO is Monday=1..Sunday=7
+        exp.DayOfWeekIso: lambda self, e: f"((({self.func('DAYOFWEEK', e.this)} + 5) % 7) + 1)",
         exp.DayOfMonth: rename_func("DAY"),
         exp.Hll: rename_func("APPROX_COUNT_DISTINCT"),
         exp.ApproxDistinct: rename_func("APPROX_COUNT_DISTINCT"),
