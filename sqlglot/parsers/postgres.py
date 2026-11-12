@@ -43,12 +43,17 @@ def _build_make_interval(args: list) -> exp.MakeInterval:
 def _build_generate_series(args: list) -> exp.ExplodingGenerateSeries:
     # The goal is to convert step values like '1 day' or INTERVAL '1 day' into INTERVAL '1' day
     # Note: postgres allows calls with just two arguments -- the "step" argument defaults to 1
+    # Only a single "<number> <unit>" string is rewritten: a string like '1' resolves to the
+    # numeric overload, and compound intervals like '1 month 2 days' are kept as they are
     step = seq_get(args, 2)
     if step is not None:
-        if step.is_string:
-            args[2] = exp.to_interval(step.this)
-        elif isinstance(step, exp.Interval) and not step.args.get("unit"):
-            args[2] = exp.to_interval(step.this.this)
+        if isinstance(step, exp.Interval) and not step.args.get("unit"):
+            value = step.this
+        else:
+            value = step
+
+        if value.is_string and exp.INTERVAL_STRING_RE.fullmatch(value.name):
+            args[2] = exp.to_interval(value.name)
 
     return exp.ExplodingGenerateSeries.from_arg_list(args)
 

@@ -1064,6 +1064,15 @@ FROM json_data, field_ids""",
                 "trino": "UNNEST(SEQUENCE(CAST('2019-01-01' AS TIMESTAMP), CAST(CURRENT_TIMESTAMP AS TIMESTAMP), INTERVAL '1' DAY))",
             },
         )
+        self.validate_identity("SELECT COUNT(*) FROM GENERATE_SERIES(1, 3, '1')")
+        self.validate_identity(
+            "SELECT COUNT(*) FROM GENERATE_SERIES(DATE '2024-01-01', DATE '2024-03-05', '1 month 2 days')",
+            "SELECT COUNT(*) FROM GENERATE_SERIES(CAST('2024-01-01' AS DATE), CAST('2024-03-05' AS DATE), '1 month 2 days')",
+        )
+        self.validate_identity(
+            "SELECT COUNT(*) FROM GENERATE_SERIES(DATE '2024-01-01', DATE '2024-03-05', INTERVAL '1 month 2 days')",
+            "SELECT COUNT(*) FROM GENERATE_SERIES(CAST('2024-01-01' AS DATE), CAST('2024-03-05' AS DATE), INTERVAL '1 month 2 days')",
+        )
         self.validate_all(
             "SELECT * FROM GENERATE_SERIES(a, b)",
             read={
