@@ -217,6 +217,29 @@ class TestSQLite(Validator):
             },
         )
 
+    def test_bitwise_xor(self):
+        self.validate_all(
+            "SELECT (5 | 3) & ~(5 & 3)",
+            read={
+                "postgres": "SELECT 5 # 3",
+                "duckdb": "SELECT XOR(5, 3)",
+                "snowflake": "SELECT BITXOR(5, 3)",
+                "mysql": "SELECT 5 ^ 3",
+            },
+        )
+        self.validate_all(
+            "SELECT 1 + ((a | b) & ~(a & b))",
+            read={"mysql": "SELECT 1 + a ^ b"},
+        )
+        self.validate_all(
+            "SELECT ((a + 1) | b) & ~((a + 1) & b)",
+            read={"postgres": "SELECT a + 1 # b"},
+        )
+        self.validate_all(
+            "SELECT ((a | b) & ~(a & b)) = 6",
+            read={"mysql": "SELECT a ^ b = 6"},
+        )
+
     def test_sqlite(self):
         # Range operators (IN/LIKE) are left-associative and can be chained.
         self.validate_identity("SELECT 1 IN (0) IN (1)")

@@ -249,6 +249,25 @@ class SQLiteGenerator(generator.Generator):
         self.unsupported("BITWISE_OR aggregation is not supported in SQLite")
         return self.function_fallback_sql(expression)
 
+    def bitwisexor_sql(self, expression: exp.BitwiseXor) -> str:
+        # SQLite has no XOR operator, so a ^ b is written as (a | b) & ~(a & b)
+        def operand(arg: str) -> exp.Expr:
+            node = expression.args[arg]
+            return exp.paren(node) if isinstance(node, exp.Binary) else node.copy()
+
+        xor: exp.Expr = exp.BitwiseAnd(
+            this=exp.paren(exp.BitwiseOr(this=operand("this"), expression=operand("expression"))),
+            expression=exp.BitwiseNot(
+                this=exp.paren(
+                    exp.BitwiseAnd(this=operand("this"), expression=operand("expression"))
+                )
+            ),
+        )
+        parent = expression.parent
+        if isinstance(parent, (exp.Binary, exp.Unary)) and not isinstance(parent, exp.Paren):
+            xor = exp.paren(xor)
+        return self.sql(xor)
+
     def bitwisexoragg_sql(self, expression: exp.BitwiseXorAgg) -> str:
         self.unsupported("BITWISE_XOR aggregation is not supported in SQLite")
         return self.function_fallback_sql(expression)
