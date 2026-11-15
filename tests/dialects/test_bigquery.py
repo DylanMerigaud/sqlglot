@@ -623,6 +623,17 @@ class TestBigQuery(Validator):
             "SELECT * FROM proj.region_or_dataset.`INFORMATION_SCHEMA.TABLES` AS TABLES",
         )
         self.validate_identity(
+            "SELECT * FROM region_or_dataset.`INFORMATION_SCHEMA.TABLES` AS TABLES"
+        )
+        self.validate_identity("SELECT * FROM region_or_dataset.`INFORMATION_SCHEMA.TABLES` AS t")
+        self.validate_identity(
+            "SELECT * FROM proj.region_or_dataset.`INFORMATION_SCHEMA.TABLES` AS TABLES"
+        )
+        self.validate_identity(
+            "SELECT TABLES.x FROM `region-us`.`INFORMATION_SCHEMA.TABLES`",
+            "SELECT TABLES.x FROM `region-us`.`INFORMATION_SCHEMA.TABLES` AS TABLES",
+        )
+        self.validate_identity(
             "CREATE VIEW `d.v` OPTIONS (expiration_timestamp=TIMESTAMP '2020-01-02T04:05:06.007Z') AS SELECT 1 AS c",
             "CREATE VIEW `d.v` OPTIONS (expiration_timestamp=CAST('2020-01-02T04:05:06.007Z' AS TIMESTAMP)) AS SELECT 1 AS c",
         )

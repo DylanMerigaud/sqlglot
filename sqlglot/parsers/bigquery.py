@@ -485,7 +485,20 @@ class BigQueryParser(parser.Parser):
                     table.set("db", exp.Identifier(this=parts[0]).update_positions(previous_this))
                     table.set("this", exp.Identifier(this=parts[1]).update_positions(previous_this))
 
-        if isinstance(table.this, exp.Identifier) and any("." in p.name for p in table.parts):
+        # region.`INFORMATION_SCHEMA.X` is how an information schema view is generated
+        # (see below), so it is kept as is when it is read back
+        view_parts = table.name.upper().split(".")
+        is_info_schema_view = (
+            len(table.parts) > 1
+            and view_parts[:-1] == ["INFORMATION_SCHEMA"]
+            and not any("." in p.name for p in table.parts[:-1])
+        )
+
+        if (
+            not is_info_schema_view
+            and isinstance(table.this, exp.Identifier)
+            and any("." in p.name for p in table.parts)
+        ):
             alias = table.this
             catalog, db, this_id, *rest = (
                 exp.to_identifier(p, quoted=True)
@@ -516,7 +529,11 @@ class BigQueryParser(parser.Parser):
         #
         # See: https://cloud.google.com/bigquery/docs/information-schema-intro#syntax
         table_parts = table.parts
-        if len(table_parts) > 1 and table_parts[-2].name.upper() == "INFORMATION_SCHEMA":
+        if is_info_schema_view:
+            # Same alias as below, so qualified columns keep resolving after a round trip
+            view = exp.to_identifier(table.name.split(".")[-1])
+            exp.alias_(table, view.update_positions(table.this), table=True, copy=False)
+        elif len(table_parts) > 1 and table_parts[-2].name.upper() == "INFORMATION_SCHEMA":
             # We need to alias the table here to avoid breaking existing qualified columns.
             # This is expected to be safe, because if there's an actual alias coming up in
             # the token stream, it will overwrite this one. If there isn't one, we are only
