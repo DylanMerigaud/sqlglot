@@ -423,6 +423,19 @@ class BigQueryParser(parser.Parser):
             return self._parse_as_command(self._prev)
         return self.expression(exp.ForIn(this=this, expression=self._parse_statement()))
 
+    def _parse_function_args(self, alias: bool = False) -> list[exp.Expr]:
+        return self._parse_csv(
+            lambda: self._parse_table_argument() or self._parse_lambda(alias=alias)
+        )
+
+    def _parse_table_argument(self) -> exp.Expr | None:
+        # Table-valued function argument, e.g. f(TABLE dataset.tbl)
+        # https://cloud.google.com/bigquery/docs/table-functions
+        if self._curr.token_type == TokenType.TABLE and self._next.token_type in self.ID_VAR_TOKENS:
+            self._advance()
+            return self._parse_table_parts()
+        return None
+
     def _parse_table_part(self, schema: bool = False) -> exp.Expr | None:
         this = super()._parse_table_part(schema=schema) or self._parse_number()
 

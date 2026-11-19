@@ -2712,6 +2712,10 @@ WHERE
         self.validate_identity(
             "CREATE TABLE FUNCTION a(x INT64) RETURNS TABLE <q STRING, r INT64> AS SELECT s, t"
         )
+        self.validate_identity("SELECT * FROM mydataset.f(TABLE mydataset.my_table)")
+        self.validate_identity("WITH t AS (SELECT 1 AS x) SELECT * FROM mydataset.f(TABLE t)")
+        self.validate_identity("SELECT * FROM f(TABLE `p.d.t`, 1)")
+        self.validate_identity("SELECT f(table) FROM t")
         self.validate_identity(
             '''CREATE TEMPORARY FUNCTION string_length_0(strings ARRAY<STRING>) RETURNS FLOAT64 LANGUAGE js AS """'use strict'; function string_length(strings) { return _.sum(_.map(strings, ((x) => x.length))); } return string_length(strings);""" OPTIONS (library=['gs://ibis-testing-libraries/lodash.min.js'])''',
             "CREATE TEMPORARY FUNCTION string_length_0(strings ARRAY<STRING>) RETURNS FLOAT64 LANGUAGE js OPTIONS (library=['gs://ibis-testing-libraries/lodash.min.js']) AS '\\'use strict\\'; function string_length(strings) { return _.sum(_.map(strings, ((x) => x.length))); } return string_length(strings);'",

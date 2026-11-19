@@ -4325,9 +4325,12 @@ class Generator:
         parent = expression.parent
         is_qualified = isinstance(parent, exp.Dot) and expression is parent.expression
 
-        return self.func(
-            self.sql(expression, "this"), *expression.expressions, normalize=not is_qualified
+        # A table passed to a table-valued function, e.g. f(TABLE dataset.tbl)
+        args = (
+            f"TABLE {self.sql(arg)}" if isinstance(arg, exp.Table) else arg
+            for arg in expression.expressions
         )
+        return self.func(self.sql(expression, "this"), *args, normalize=not is_qualified)
 
     def paren_sql(self, expression: exp.Paren) -> str:
         sql = self.seg(self.indent(self.sql(expression, "this")), sep="")
